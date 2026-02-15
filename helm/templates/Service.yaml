@@ -1,16 +1,23 @@
+# ---------------------------------------------------------------------------
+# Service
+# ---------------------------------------------------------------------------
+# Exposes the rick-morty-devops pods inside the cluster.
+# NodePort type makes the service reachable from outside the cluster
+# via minikube's IP on port 30500.
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}
+  name: rick-morty-devops
   labels:
-    app: {{ .Release.Name }}
+    app: rick-morty-devops
 spec:
-  type: {{ .Values.service.type }}
+  type: NodePort
   selector:
-    app: {{ .Release.Name }}
+    app: rick-morty-devops
   ports:
     - name: http
       protocol: TCP
-      port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
-      nodePort: {{ .Values.service.nodePort }}
+      port: 80         # Port exposed inside the cluster
+      targetPort: 5000 # Port the Flask app listens on inside the container
+      nodePort: 30500  # Port accessible from outside the cluster (30000–32767)
