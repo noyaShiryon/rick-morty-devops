@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# Default values for rick-morty-devops chart.
+# Override any of these values with: helm install --set key=value
+# ---------------------------------------------------------------------------
+
+replicaCount: 2
+
+image:
+  name: rick-morty-devops
+  tag: latest
+  pullPolicy: Never  # Use local image built by Docker (no registry)
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 5000
+  nodePort: 30500
+
+ingress:
+  enabled: true
+  host: rick-morty.local
+
+probes:
+  liveness:
+    path: /healthcheck
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  readiness:
+    path: /healthcheck
+    initialDelaySeconds: 5
+    periodSeconds: 10

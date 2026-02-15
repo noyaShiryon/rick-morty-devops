@@ -1,0 +1,11 @@
+# ---------------------------------------------------------------------------
+# Chart metadata
+# ---------------------------------------------------------------------------
+# Describes the Helm chart itself – name, version, and a short description.
+
+apiVersion: v2
+name: rick-morty-devops
+description: A Helm chart for deploying the Rick and Morty character REST API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
