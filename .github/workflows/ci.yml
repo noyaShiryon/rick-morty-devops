@@ -35,13 +35,14 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 4. Import the image into k3s
-      #    Save the Docker image as a tar and import it into k3s containerd.
-      #    The k3s binary is placed at /usr/local/bin/k3s by the action.
+      #    Find the k3s binary dynamically and import the image into containerd.
       # -----------------------------------------------------------------------
       - name: Import image into k3s
         run: |
           docker save rick-morty-devops:latest -o /tmp/rick-morty-devops.tar
-          sudo /usr/local/bin/k3s ctr images import /tmp/rick-morty-devops.tar
+          K3S_BIN=$(which k3s || find / -name "k3s" -type f 2>/dev/null | head -1)
+          echo "Found k3s at: $K3S_BIN"
+          sudo $K3S_BIN ctr images import /tmp/rick-morty-devops.tar
 
       # -----------------------------------------------------------------------
       # 5. Deploy to the cluster using the Kubernetes manifests
