@@ -34,8 +34,7 @@ jobs:
         run: docker build -t rick-morty-devops:latest .
 
       # -----------------------------------------------------------------------
-      # 4. Import the image into k3s
-      #    Find the k3s binary dynamically and import the image into containerd.
+      # 4. Import the image into k3s containerd
       # -----------------------------------------------------------------------
       - name: Import image into k3s
         run: |
@@ -43,13 +42,19 @@ jobs:
           K3S_BIN=$(which k3s || find / -name "k3s" -type f 2>/dev/null | head -1)
           echo "Found k3s at: $K3S_BIN"
           sudo $K3S_BIN ctr images import /tmp/rick-morty-devops.tar
+          echo "Images in k3s:"
+          sudo $K3S_BIN ctr images list | grep rick-morty
 
       # -----------------------------------------------------------------------
-      # 5. Deploy to the cluster using the Kubernetes manifests
+      # 5. Deploy to the cluster
+      #    Override imagePullPolicy to IfNotPresent so k3s uses the local image
       # -----------------------------------------------------------------------
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f yamls/
+          kubectl set image deployment/rick-morty-devops rick-morty-devops=rick-morty-devops:latest
+          kubectl patch deployment rick-morty-devops \
+            -p '{"spec":{"template":{"spec":{"containers":[{"name":"rick-morty-devops","imagePullPolicy":"IfNotPresent"}]}}}}'
 
       # -----------------------------------------------------------------------
       # 6. Wait for the deployment to be fully ready (timeout: 120 seconds)
@@ -60,8 +65,6 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 7. Smoke tests
-      #    Forward the service port locally and run curl tests against both
-      #    endpoints. The tests fail the workflow if any check does not pass.
       # -----------------------------------------------------------------------
       - name: Run smoke tests
         run: |
