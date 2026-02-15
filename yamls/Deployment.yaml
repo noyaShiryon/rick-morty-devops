@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# Deployment
+# ---------------------------------------------------------------------------
+# Manages the rollout and lifecycle of the rick-morty-devops application pods.
+# Maintains 2 replicas for basic availability.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rick-morty-devops
+  labels:
+    app: rick-morty-devops
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rick-morty-devops
+  template:
+    metadata:
+      labels:
+        app: rick-morty-devops
+    spec:
+      containers:
+        - name: rick-morty-devops
+          image: rick-morty-devops:latest
+          # Use the local image built by Docker; do not pull from a registry
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          # Liveness probe – restarts the container if /healthcheck stops responding
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          # Readiness probe – removes the pod from the Service until it is ready
+          readinessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+# Routes external HTTP traffic into the cluster via the nginx ingress controller.
+# Requires the ingress addon to be enabled in minikube:
+#   minikube addons enable ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rick-morty-devops
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: rick-morty.local   # Add this to your /etc/hosts pointing to minikube IP
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rick-morty-devops
+                port:
+                  number: 80
