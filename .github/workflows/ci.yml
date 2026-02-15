@@ -1,18 +1,3 @@
-# ---------------------------------------------------------------------------
-# CI/CD Workflow – Rick and Morty DevOps
-# ---------------------------------------------------------------------------
-# Triggers: every push to main, and every pull request targeting main.
-#
-# Jobs:
-#   1. build-and-test
-#      a. Spin up a lightweight k3s Kubernetes cluster on the runner
-#      b. Build the Docker image from the Dockerfile
-#      c. Import the image into k3s (no registry needed)
-#      d. Deploy the application using kubectl
-#      e. Wait for the deployment to become ready
-#      f. Run smoke tests against /healthcheck and /characters endpoints
-# ---------------------------------------------------------------------------
-
 name: CI/CD Pipeline
 
 on:
@@ -50,12 +35,13 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 4. Import the image into k3s
-      #    k3s uses containerd instead of Docker, so the image must be
-      #    explicitly imported rather than pulled from a registry.
+      #    Save the Docker image as a tar and import it into k3s containerd.
+      #    The k3s binary is placed at /usr/local/bin/k3s by the action.
       # -----------------------------------------------------------------------
       - name: Import image into k3s
         run: |
-          docker save rick-morty-devops:latest | sudo k3s ctr images import -
+          docker save rick-morty-devops:latest -o /tmp/rick-morty-devops.tar
+          sudo /usr/local/bin/k3s ctr images import /tmp/rick-morty-devops.tar
 
       # -----------------------------------------------------------------------
       # 5. Deploy to the cluster using the Kubernetes manifests
@@ -78,11 +64,8 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Run smoke tests
         run: |
-          # Start port-forwarding in the background
           kubectl port-forward service/rick-morty-devops 5000:80 &
           PF_PID=$!
-
-          # Give port-forward a moment to establish
           sleep 5
 
           echo "--- Testing /healthcheck ---"
@@ -96,5 +79,4 @@ jobs:
           echo "$CHARS" | grep -q '"characters"' || (echo "FAIL: /characters did not return expected data" && exit 1)
           echo "PASS: /characters"
 
-          # Stop port-forwarding
           kill $PF_PID
