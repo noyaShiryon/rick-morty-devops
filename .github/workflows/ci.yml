@@ -47,14 +47,14 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 5. Deploy to the cluster
-      #    Override imagePullPolicy to IfNotPresent so k3s uses the local image
+      #    Use 1 replica in CI to fit within GitHub runner resources.
+      #    Override imagePullPolicy to IfNotPresent to use the local image.
       # -----------------------------------------------------------------------
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f yamls/
-          kubectl set image deployment/rick-morty-devops rick-morty-devops=rick-morty-devops:latest
           kubectl patch deployment rick-morty-devops \
-            -p '{"spec":{"template":{"spec":{"containers":[{"name":"rick-morty-devops","imagePullPolicy":"IfNotPresent"}]}}}}'
+            -p '{"spec":{"replicas":1,"template":{"spec":{"containers":[{"name":"rick-morty-devops","imagePullPolicy":"IfNotPresent"}]}}}}'
 
       # -----------------------------------------------------------------------
       # 6. Wait for the deployment to be fully ready (timeout: 120 seconds)
