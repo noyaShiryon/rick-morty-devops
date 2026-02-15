@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: rick-morty-devops
-          image: rick-morty-devops:latest
+          image: docker.io/library/rick-morty-devops:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000

@@ -29,58 +29,42 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 3. Build the Docker image
+      #    Tag with full docker.io prefix so k3s can resolve it correctly.
       # -----------------------------------------------------------------------
       - name: Build Docker image
-        run: docker build -t rick-morty-devops:latest .
+        run: docker build -t docker.io/library/rick-morty-devops:latest .
 
       # -----------------------------------------------------------------------
       # 4. Import the image into k3s
-      #    k3s uses containerd, not Docker. We save the image as a tar file
-      #    and import it directly into the k3s containerd image store.
-      #    The k3s binary path is located dynamically.
+      #    k3s stores images with the full docker.io/library/ prefix.
+      #    We build and tag with that prefix so names match exactly.
       # -----------------------------------------------------------------------
       - name: Import image into k3s
         run: |
-          docker save rick-morty-devops:latest -o /tmp/rick-morty.tar
-          K3S_BIN=$(find / -name "k3s" -type f 2>/dev/null | head -1)
-          echo "k3s binary: $K3S_BIN"
-          sudo $K3S_BIN ctr images import /tmp/rick-morty.tar
+          docker save docker.io/library/rick-morty-devops:latest -o /tmp/rick-morty.tar
+          sudo k3s ctr images import /tmp/rick-morty.tar
           echo "Verifying image in k3s:"
-          sudo $K3S_BIN ctr images list | grep rick-morty
+          sudo k3s ctr images list | grep rick-morty
 
       # -----------------------------------------------------------------------
       # 5. Deploy to Kubernetes
-      #    Apply all manifests from yamls/ directory.
-      #    imagePullPolicy is set to IfNotPresent in Deployment.yaml so k3s
-      #    uses the locally imported image.
       # -----------------------------------------------------------------------
       - name: Deploy to Kubernetes
         run: kubectl apply -f yamls/
 
       # -----------------------------------------------------------------------
       # 6. Wait for rollout
-      #    Increased timeout to 180s to account for API data fetching on startup.
       # -----------------------------------------------------------------------
       - name: Wait for deployment to be ready
         run: kubectl rollout status deployment/rick-morty-devops --timeout=180s
 
       # -----------------------------------------------------------------------
       # 7. Smoke tests
-      #    Port-forward the service and test both endpoints.
-      #    Retry port-forward up to 3 times in case the pod is not ready yet.
       # -----------------------------------------------------------------------
       - name: Run smoke tests
         run: |
-          # Retry port-forward up to 3 times
-          for i in 1 2 3; do
-            kubectl port-forward service/rick-morty-devops 5000:80 &
-            PF_PID=$!
-            sleep 5
-            curl -s http://localhost:5000/healthcheck && break
-            echo "Attempt $i failed, retrying..."
-            kill $PF_PID 2>/dev/null || true
-            sleep 5
-          done
+          kubectl port-forward service/rick-morty-devops 5000:80 &
+          sleep 5
 
           echo "--- Testing /healthcheck ---"
           HEALTH=$(curl -s http://localhost:5000/healthcheck)
