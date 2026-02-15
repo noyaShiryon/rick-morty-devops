@@ -4,6 +4,19 @@ A REST API service that fetches and exposes Rick and Morty characters filtered b
 
 ---
 
+## Screenshots
+
+### Dashboard
+![Dashboard](screenshot-dashboard.png)
+
+### Character Modal – Rick Sanchez
+![Rick Sanchez Modal](screenshot-modal-rick.png)
+
+### Character Modal – Beth Smith
+![Beth Smith Modal](screenshot-modal-beth.png)
+
+---
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -90,6 +103,7 @@ Server runs at `http://localhost:5000`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/` | Interactive HTML dashboard with character cards |
 | GET | `/healthcheck` | Returns service health status |
 | GET | `/characters` | Returns all filtered characters as JSON |
 
