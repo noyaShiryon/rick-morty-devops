@@ -39,29 +39,22 @@ jobs:
       - name: Import image into k3s
         run: |
           docker save rick-morty-devops:latest -o /tmp/rick-morty-devops.tar
-          K3S_BIN=$(which k3s || find / -name "k3s" -type f 2>/dev/null | head -1)
+          K3S_BIN=$(which k3s || find /usr/local/bin /usr/bin -name "k3s" 2>/dev/null | head -1)
           echo "Found k3s at: $K3S_BIN"
           sudo $K3S_BIN ctr images import /tmp/rick-morty-devops.tar
-          echo "Images in k3s:"
           sudo $K3S_BIN ctr images list | grep rick-morty
 
       # -----------------------------------------------------------------------
       # 5. Deploy to the cluster
-      #    Use 1 replica in CI to fit within GitHub runner resources.
-      #    Override imagePullPolicy to IfNotPresent to use the local image.
       # -----------------------------------------------------------------------
       - name: Deploy to Kubernetes
-        run: |
-          kubectl apply -f yamls/
-          kubectl patch deployment rick-morty-devops \
-            -p '{"spec":{"replicas":1,"template":{"spec":{"containers":[{"name":"rick-morty-devops","imagePullPolicy":"IfNotPresent"}]}}}}'
+        run: kubectl apply -f yamls/
 
       # -----------------------------------------------------------------------
-      # 6. Wait for the deployment to be fully ready (timeout: 120 seconds)
+      # 6. Wait for rollout (timeout: 120s)
       # -----------------------------------------------------------------------
       - name: Wait for deployment to be ready
-        run: |
-          kubectl rollout status deployment/rick-morty-devops --timeout=120s
+        run: kubectl rollout status deployment/rick-morty-devops --timeout=120s
 
       # -----------------------------------------------------------------------
       # 7. Smoke tests
@@ -69,18 +62,15 @@ jobs:
       - name: Run smoke tests
         run: |
           kubectl port-forward service/rick-morty-devops 5000:80 &
-          PF_PID=$!
           sleep 5
 
           echo "--- Testing /healthcheck ---"
           HEALTH=$(curl -s http://localhost:5000/healthcheck)
           echo "Response: $HEALTH"
-          echo "$HEALTH" | grep -q '"ok"' || (echo "FAIL: /healthcheck did not return ok" && exit 1)
+          echo "$HEALTH" | grep -q '"ok"' || (echo "FAIL: /healthcheck" && exit 1)
           echo "PASS: /healthcheck"
 
           echo "--- Testing /characters ---"
           CHARS=$(curl -s http://localhost:5000/characters)
-          echo "$CHARS" | grep -q '"characters"' || (echo "FAIL: /characters did not return expected data" && exit 1)
+          echo "$CHARS" | grep -q '"characters"' || (echo "FAIL: /characters" && exit 1)
           echo "PASS: /characters"
-
-          kill $PF_PID
