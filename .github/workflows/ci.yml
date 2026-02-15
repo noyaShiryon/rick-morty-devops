@@ -1,0 +1,100 @@
+# ---------------------------------------------------------------------------
+# CI/CD Workflow – Rick and Morty DevOps
+# ---------------------------------------------------------------------------
+# Triggers: every push to main, and every pull request targeting main.
+#
+# Jobs:
+#   1. build-and-test
+#      a. Spin up a lightweight k3s Kubernetes cluster on the runner
+#      b. Build the Docker image from the Dockerfile
+#      c. Import the image into k3s (no registry needed)
+#      d. Deploy the application using kubectl
+#      e. Wait for the deployment to become ready
+#      f. Run smoke tests against /healthcheck and /characters endpoints
+# ---------------------------------------------------------------------------
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build, Deploy & Test
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # -----------------------------------------------------------------------
+      # 1. Checkout source code
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # 2. Set up a lightweight k3s Kubernetes cluster
+      # -----------------------------------------------------------------------
+      - name: Start k3s cluster
+        uses: debianmaster/actions-k3s@master
+        with:
+          version: 'v1.30.0-k3s1'
+
+      # -----------------------------------------------------------------------
+      # 3. Build the Docker image
+      # -----------------------------------------------------------------------
+      - name: Build Docker image
+        run: docker build -t rick-morty-devops:latest .
+
+      # -----------------------------------------------------------------------
+      # 4. Import the image into k3s
+      #    k3s uses containerd instead of Docker, so the image must be
+      #    explicitly imported rather than pulled from a registry.
+      # -----------------------------------------------------------------------
+      - name: Import image into k3s
+        run: |
+          docker save rick-morty-devops:latest | sudo k3s ctr images import -
+
+      # -----------------------------------------------------------------------
+      # 5. Deploy to the cluster using the Kubernetes manifests
+      # -----------------------------------------------------------------------
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f yamls/
+
+      # -----------------------------------------------------------------------
+      # 6. Wait for the deployment to be fully ready (timeout: 120 seconds)
+      # -----------------------------------------------------------------------
+      - name: Wait for deployment to be ready
+        run: |
+          kubectl rollout status deployment/rick-morty-devops --timeout=120s
+
+      # -----------------------------------------------------------------------
+      # 7. Smoke tests
+      #    Forward the service port locally and run curl tests against both
+      #    endpoints. The tests fail the workflow if any check does not pass.
+      # -----------------------------------------------------------------------
+      - name: Run smoke tests
+        run: |
+          # Start port-forwarding in the background
+          kubectl port-forward service/rick-morty-devops 5000:80 &
+          PF_PID=$!
+
+          # Give port-forward a moment to establish
+          sleep 5
+
+          echo "--- Testing /healthcheck ---"
+          HEALTH=$(curl -s http://localhost:5000/healthcheck)
+          echo "Response: $HEALTH"
+          echo "$HEALTH" | grep -q '"ok"' || (echo "FAIL: /healthcheck did not return ok" && exit 1)
+          echo "PASS: /healthcheck"
+
+          echo "--- Testing /characters ---"
+          CHARS=$(curl -s http://localhost:5000/characters)
+          echo "$CHARS" | grep -q '"characters"' || (echo "FAIL: /characters did not return expected data" && exit 1)
+          echo "PASS: /characters"
+
+          # Stop port-forwarding
+          kill $PF_PID
