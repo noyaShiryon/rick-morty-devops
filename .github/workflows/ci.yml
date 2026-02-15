@@ -21,6 +21,7 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 2. Set up a lightweight k3s Kubernetes cluster
+      #    k3s runs as a Docker container named k3s-v1.30.0-k3s1
       # -----------------------------------------------------------------------
       - name: Start k3s cluster
         uses: debianmaster/actions-k3s@master
@@ -29,22 +30,20 @@ jobs:
 
       # -----------------------------------------------------------------------
       # 3. Build the Docker image
-      #    Tag with full docker.io prefix so k3s can resolve it correctly.
       # -----------------------------------------------------------------------
       - name: Build Docker image
-        run: docker build -t docker.io/library/rick-morty-devops:latest .
+        run: docker build -t rick-morty-devops:latest .
 
       # -----------------------------------------------------------------------
       # 4. Import the image into k3s
-      #    k3s stores images with the full docker.io/library/ prefix.
-      #    We build and tag with that prefix so names match exactly.
+      #    k3s runs inside a Docker container, so we pipe the image directly
+      #    into the k3s container using docker exec.
       # -----------------------------------------------------------------------
       - name: Import image into k3s
         run: |
-          docker save docker.io/library/rick-morty-devops:latest -o /tmp/rick-morty.tar
-          sudo k3s ctr images import /tmp/rick-morty.tar
+          docker save rick-morty-devops:latest | docker exec -i k3s-v1.30.0-k3s1 ctr images import -
           echo "Verifying image in k3s:"
-          sudo k3s ctr images list | grep rick-morty
+          docker exec k3s-v1.30.0-k3s1 ctr images list | grep rick-morty
 
       # -----------------------------------------------------------------------
       # 5. Deploy to Kubernetes
