@@ -34,21 +34,9 @@ jobs:
           sudo $K3S_BIN ctr images list | grep rick-morty
 
       - name: Deploy to Kubernetes
-        run: kubectl apply -f yamls/
-
-      # -----------------------------------------------------------------------
-      # Debug: show pod status and logs before waiting for rollout
-      # -----------------------------------------------------------------------
-      - name: Debug pod status
         run: |
-          echo "--- Waiting 30s for pods to start ---"
-          sleep 30
-          echo "--- Pod list ---"
-          kubectl get pods -o wide
-          echo "--- Pod descriptions ---"
-          kubectl describe pods
-          echo "--- Pod logs (if any) ---"
-          kubectl logs -l app=rick-morty-devops --tail=50 || true
+          kubectl delete deployment rick-morty-devops --ignore-not-found=true
+          kubectl apply -f yamls/
 
       - name: Wait for deployment to be ready
         run: kubectl rollout status deployment/rick-morty-devops --timeout=120s
